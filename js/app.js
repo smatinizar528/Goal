@@ -149,6 +149,7 @@
         background:#0d1411; color:white;
         border:1px solid #34473b;
         border-radius:8px; outline:none;
+        box-sizing:border-box;
       }
       .goal-auth-box input:focus {
         border-color:#b8f36b;
@@ -198,19 +199,19 @@
         <h2 id="goalAuthTitle">Connexion</h2>
 
         <div id="goalAuthForm">
-          <label for="goalName">Nom</label>
-          <input id="goalName"
-            type="text" placeholder="Votre nom">
-
-          <label for="goalEmail">Adresse e-mail</label>
-          <input id="goalEmail"
-            type="email" placeholder="nom@email.com"
-            autocomplete="email">
+          <label for="goalUsername">Nom d’utilisateur</label>
+          <input id="goalUsername"
+            type="text"
+            placeholder="Votre nom d’utilisateur"
+            autocomplete="username"
+            maxlength="30">
 
           <label for="goalPassword">Mot de passe</label>
           <input id="goalPassword"
-            type="password" placeholder="Minimum 6 caractères"
-            autocomplete="current-password">
+            type="password"
+            placeholder="6 caractères minimum"
+            autocomplete="current-password"
+            minlength="6">
 
           <div class="goal-auth-actions">
             <button id="goalLogin"
@@ -279,15 +280,42 @@
       currentUser ? "Mon compte" : "Connexion";
 
     $("goalUserEmail").textContent =
-      currentUser?.email || "";
+      currentUser?.user_metadata?.display_name ||
+      currentUser?.user_metadata?.username ||
+      "Compte GOAL";
   }
 
-  async function login() {
-    const email = $("goalEmail").value.trim();
-    const password = $("goalPassword").value;
+  // INTERNAL EMAIL ALIAS FOR SUPABASE
+  function usernameToInternalEmail(username) {
+    const normalized = username.trim().toLowerCase();
 
-    if (!email || !password) {
-      return authMessage("Veuillez remplir les champs.");
+    if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(normalized)) {
+      return null;
+    }
+
+    return `${normalized}@goal-login.invalid`;
+  }
+
+  // LOGIN
+  async function login() {
+    const username = $("goalUsername").value.trim();
+    const password = $("goalPassword").value;
+    const email = usernameToInternalEmail(username);
+
+    if (!username || !password) {
+      return authMessage(
+        "Saisissez votre nom d’utilisateur et votre mot de passe."
+      );
+    }
+
+    if (!email) {
+      return authMessage(
+        "Nom d’utilisateur invalide : 3 à 30 caractères, lettres sans accents, chiffres, point, tiret ou underscore."
+      );
+    }
+
+    if (password.length < 6) {
+      return authMessage("Mot de passe : 6 caractères minimum.");
     }
 
     const button = $("goalLogin");
@@ -301,7 +329,9 @@
     button.disabled = false;
 
     if (error) {
-      return authMessage(error.message);
+      return authMessage(
+        "Connexion impossible. Vérifiez vos identifiants."
+      );
     }
 
     currentUser = data.user;
@@ -312,13 +342,22 @@
     toast("Connexion réussie !");
   }
 
+  // REGISTER
   async function register() {
-    const name = $("goalName").value.trim();
-    const email = $("goalEmail").value.trim();
+    const username = $("goalUsername").value.trim();
+    const email = usernameToInternalEmail(username);
     const password = $("goalPassword").value;
 
-    if (!name || !email || !password) {
-      return authMessage("Remplissez tous les champs.");
+    if (!username || !password) {
+      return authMessage(
+        "Saisissez un nom d’utilisateur et un mot de passe."
+      );
+    }
+
+    if (!email) {
+      return authMessage(
+        "Nom d’utilisateur invalide : 3 à 30 caractères, lettres sans accents, chiffres, point, tiret ou underscore."
+      );
     }
 
     if (password.length < 6) {
@@ -333,7 +372,8 @@
       password,
       options: {
         data: {
-          display_name: name
+          display_name: username,
+          username: username
         }
       }
     });
@@ -353,11 +393,12 @@
       toast("Compte GOAL créé !");
     } else {
       authMessage(
-        "Compte créé ! Vérifiez votre boîte e-mail pour confirmer votre inscription."
+        "Compte créé. Si la connexion n’est pas automatique, vérifiez que Confirm email est désactivé dans Supabase."
       );
     }
   }
 
+  // LOGOUT
   async function logout() {
     const { error } = await client.auth.signOut();
 
