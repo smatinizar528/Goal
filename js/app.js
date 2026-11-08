@@ -445,6 +445,7 @@
     })[char]);
   }
 
+ 
   function renderHistory() {
     const body = $("historyBody");
     if (!body) return;
@@ -455,37 +456,62 @@
       return;
     }
 
-    body.innerHTML = state.history.slice().reverse().map(item => `
+    body.innerHTML = state.history.map(item => `
       <tr>
         <td>${escapeHtml(item.date || "")}</td>
         <td>${escapeHtml(item.match || "")}</td>
         <td>${escapeHtml(item.choice || "")}</td>
         <td>${format(item.stake)} PTS</td>
         <td>${format(item.potential)} PTS</td>
-        <td><span class="status-pending">En attente</span></td>
+        <td><span class="status-pending">${escapeHtml(item.status || "En attente")}</span></td>
       </tr>
     `).join("");
   }
 
-  function renderMatches() {
-    const container = $("matchesList");
-    if (!container) return;
-
-    const visible = matches.filter(match => {
-      if (filter === "live") return match.status === "live";
-      if (filter === "upcoming") return match.status === "upcoming";
-      return true;
-    });
-
-    if (!visible.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <strong>Aucun match disponible</strong>
-          <p>Ajoutez des matchs de démonstration dans Supabase (matches et odds).</p>
-        </div>
-      `;
+  async function loadHistory() {
+    if (!client || !currentUser) {
+      state.history = [];
+      renderHistory();
       return;
     }
+
+    const { data, error } = await client
+      .from("predictions")
+      .select(`
+        created_at,
+        selection,
+        odd_snapshot,
+        stake_points,
+        potential_points,
+        status,
+        matches(home_team, away_team)
+      `)
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("History error:", error);
+      toast("Impossible de charger l'historique.");
+      return;
+    }
+
+    state.history = (data || []).map(item => ({
+      date: item.created_at
+        ? new Date(item.created_at).toLocaleString("fr-FR")
+        : "",
+      match: item.matches
+        ? `${item.matches.home_team} — ${item.matches.away_team}`
+        : "Match",
+      choice: item.selection,
+      stake: Number(item.stake_points),
+      potential: Number(item.potential_points),
+      status: item.status === "pending"
+        ? "En attente"
+        : item.status
+    }));
+
+    renderHistory();
+  }
 
     container.innerHTML = visible.map(match => {
       const chosen = selection[match.id];
@@ -848,8 +874,13 @@
         currentUser = session?.user || null;
         updateProfileButton();
 
-        if (currentUser) {
-          loadWallet();
+       if (currentUser) {
+  await loadWallet();
+  await loadHistory();
+}
+
+await loadMatches();
+}
         } else {
           databaseBalance = null;
           renderAccount();
