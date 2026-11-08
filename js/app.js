@@ -511,3 +511,4 @@
       toast(error.message || "Erreur lors du pronostic.");
     }
   }
+})();
