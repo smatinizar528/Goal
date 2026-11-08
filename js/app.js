@@ -27,53 +27,8 @@
 
   const START_POINTS = Number(config?.demoStartingPoints) || 10000;
 
-  // DEMO MATCHES
-  const matches = [
-    {
-      id: "m1",
-      home: "Paris FC",
-      away: "London City",
-      homeBadge: "🔵",
-      awayBadge: "🔴",
-      status: "live",
-      time: "65′",
-      score: "1 – 0",
-      odds: { "1": 1.85, X: 3.20, "2": 4.10 }
-    },
-    {
-      id: "m2",
-      home: "Madrid CF",
-      away: "Munich FC",
-      homeBadge: "⚪",
-      awayBadge: "🔴",
-      status: "upcoming",
-      time: "20:45",
-      score: "—",
-      odds: { "1": 2.10, X: 3.30, "2": 2.85 }
-    },
-    {
-      id: "m3",
-      home: "Milan AC",
-      away: "Amsterdam FC",
-      homeBadge: "⚫",
-      awayBadge: "🟠",
-      status: "upcoming",
-      time: "21:00",
-      score: "—",
-      odds: { "1": 1.95, X: 3.45, "2": 3.60 }
-    },
-    {
-      id: "m4",
-      home: "Lisbon SC",
-      away: "Dortmund 09",
-      homeBadge: "🟢",
-      awayBadge: "🟡",
-      status: "live",
-      time: "32′",
-      score: "0 – 0",
-      odds: { "1": 2.40, X: 2.90, "2": 2.75 }
-    }
-  ];
+  // MATCHES CHARGÉS DEPUIS SUPABASE
+  let matches = [];
 
   function loadState() {
     try {
@@ -393,7 +348,7 @@
       toast("Compte GOAL créé !");
     } else {
       authMessage(
-        "Compte créé. Si la connexion n’est pas automatique, vérifiez que Confirm email est désactivé dans Supabase."
+        "Compte créé. Vérifiez que Confirm email est désactivé dans Supabase."
       );
     }
   }
@@ -428,314 +383,131 @@
       .maybeSingle();
 
     if (error) {
-      console.error("Wallet error:", error.message);
-      toast("Impossible de charger le portefeuille.");
-      return;
+      console.error("Wallet error:", error);
+      return toast("Impossible de charger le solde.");
     }
 
     if (data) {
       databaseBalance = Number(data.points);
+      state.balance = databaseBalance;
+      save();
       renderAccount();
-    } else {
-      databaseBalance = null;
-      toast("Portefeuille non trouvé. Vérifiez le trigger SQL.");
     }
   }
 
-  function updateProfileButton() {
-    const button = $("profileButton");
-
-    if (!button) return;
-
-    button.innerHTML = currentUser
-      ? `<span class="avatar">✓</span>
-         <span class="profile-label">Mon compte</span>`
-      : `<span class="avatar">U</span>
-         <span class="profile-label">Mon compte</span>`;
-  }
-
-  // MATCHES
-  function renderMatches() {
-    const visible = matches.filter(match =>
-      filter === "all" || match.status === filter
-    );
-
-    $("matchesList").innerHTML = visible.map(match => `
-      <article class="match-card">
-        <div>
-          <div class="match-meta">
-            ${match.status === "live"
-              ? '<span class="live-dot"></span> EN DIRECT'
-              : "À VENIR"} • ${match.time}
-          </div>
-
-          <div class="match-teams">
-            <span class="team">
-              <span class="team-badge">${match.homeBadge}</span>
-              <span class="team-name">${match.home}</span>
-            </span>
-
-            <span class="versus">VS</span>
-
-            <span class="team">
-              <span class="team-badge">${match.awayBadge}</span>
-              <span class="team-name">${match.away}</span>
-            </span>
-
-            <span class="match-score">${match.score}</span>
-          </div>
-        </div>
-
-        <div class="odds">
-          ${["1","X","2"].map(key => `
-            <button
-              class="odd-button ${
-                selection[match.id]?.choice === key ? "selected" : ""
-              }"
-              data-match="${match.id}"
-              data-choice="${key}"
-              type="button"
-            >
-              <span>${key}</span>
-              <strong>${match.odds[key].toFixed(2)}</strong>
-            </button>
-          `).join("")}
-        </div>
-      </article>
-    `).join("");
-  }
-
-  function countSelections() {
-    return Object.keys(selection).length;
-  }
-
-  function potential() {
-    const stake = Number($("stakeInput").value) || 0;
-
-    return Object.values(selection).reduce(
-      (total, item) => total * item.odds,
-      countSelections() ? stake : 0
-    );
-  }
-
-  function renderSlip() {
-    const entries = Object.entries(selection);
-
-    $("selectionCount").textContent = entries.length;
-
-    $("emptySlip").classList.toggle(
-      "hidden",
-      entries.length > 0
-    );
-
-    $("slipItems").innerHTML = entries.map(([id, item]) => `
-      <div class="slip-item">
-        <div class="slip-item-top">
-          <span>${item.home} – ${item.away}</span>
-          <button data-remove="${id}"
-            class="remove-selection" type="button">×</button>
-        </div>
-
-        <div class="slip-item-bottom">
-          <span>Choix : <strong>${item.choice}</strong></span>
-          <span>Cote : <strong>${item.odds.toFixed(2)}</strong></span>
-        </div>
-      </div>
-    `).join("");
-
-    $("potentialValue").innerHTML =
-      `${format(potential())} <small>PTS</small>`;
-
-    $("slipPotential").textContent =
-      `${format(potential())} PTS`;
-
-    const stake = Number($("stakeInput").value);
-    const balance = databaseBalance ?? state.balance;
-
-    $("submitPrediction").disabled =
-      !entries.length ||
-      !Number.isFinite(stake) ||
-      stake < 1 ||
-      stake > balance;
-  }
-
-  function renderHistory() {
-    $("historyBody").innerHTML = state.history.length
-      ? [...state.history].reverse().map(item => `
-        <tr>
-          <td>${item.date}</td>
-          <td>${item.matches}</td>
-          <td>${item.choices}</td>
-          <td>${format(item.stake)} PTS</td>
-          <td>${format(item.potential)} PTS</td>
-          <td><span class="status-demo">DÉMO</span></td>
-        </tr>
-      `).join("")
-      : `<tr>
-          <td colspan="6" class="table-empty">
-            Aucun pronostic pour le moment.
-          </td>
-        </tr>`;
-  }
-
-  function renderAccount() {
-    const balance = databaseBalance ?? state.balance;
-
-    $("balanceValue").innerHTML =
-      `${format(balance)} <small>PTS</small>`;
-
-    $("predictionCount").textContent =
-      state.history.length;
-
-    renderSlip();
-    renderHistory();
-  }
-
-  // EVENT HANDLERS
-  $("matchesList").addEventListener("click", event => {
-    const button = event.target.closest("[data-match]");
-    if (!button) return;
-
-    const match = matches.find(
-      item => item.id === button.dataset.match
-    );
-
-    const choice = button.dataset.choice;
-
-    if (selection[match.id]?.choice === choice) {
-      delete selection[match.id];
-    } else {
-      selection[match.id] = {
-        home: match.home,
-        away: match.away,
-        choice,
-        odds: match.odds[choice]
-      };
+  // LOAD MATCHES AND ODDS
+  async function loadMatches() {
+    if (!client) {
+      toast("Configuration Supabase manquante.");
+      return;
     }
 
-    renderMatches();
-    renderSlip();
-  });
+    const { data, error } = await client
+      .from("matches")
+      .select(`
+        id,
+        home_team,
+        away_team,
+        kickoff_at,
+        status,
+        home_score,
+        away_score,
+        leagues(name),
+        odds(selection, odd)
+      `)
+      .eq("is_demo", true)
+      .order("kickoff_at", { ascending: true });
 
-  $("slipItems").addEventListener("click", event => {
-    const button = event.target.closest("[data-remove]");
-    if (!button) return;
+    if (error) {
+      console.error(error);
+      toast("Erreur chargement des matchs.");
+      return;
+    }
 
-    delete selection[button.dataset.remove];
+    matches = (data || []).map(match => {
+      const odds = {};
 
-    renderMatches();
-    renderSlip();
-  });
-
-  document.querySelectorAll("[data-filter]").forEach(button => {
-    button.addEventListener("click", () => {
-      filter = button.dataset.filter;
-
-      document.querySelectorAll("[data-filter]").forEach(item => {
-        item.classList.toggle("active", item === button);
+      (match.odds || []).forEach(item => {
+        odds[item.selection] = Number(item.odd);
       });
 
-      renderMatches();
+      return {
+        id: match.id,
+        home: match.home_team,
+        away: match.away_team,
+        status: match.status,
+        time: match.kickoff_at
+          ? new Date(match.kickoff_at).toLocaleString("fr-FR")
+          : "",
+        score:
+          match.home_score !== null &&
+          match.away_score !== null
+            ? `${match.home_score} - ${match.away_score}`
+            : "",
+        league: match.leagues?.name || "GOAL Demo League",
+        odds
+      };
     });
-  });
 
-  document.querySelectorAll("[data-stake]").forEach(button => {
-    button.addEventListener("click", () => {
-      $("stakeInput").value = button.dataset.stake;
-      renderSlip();
-    });
-  });
+    renderMatches();
+  }
 
-  $("stakeInput").addEventListener("input", renderSlip);
-
-  $("submitPrediction").addEventListener("click", () => {
-    const stake = Math.floor(Number($("stakeInput").value));
-    const balance = databaseBalance ?? state.balance;
-
-    if (!currentUser) {
-      toast("Connectez-vous pour continuer.");
+  // SUBMIT VIRTUAL PREDICTION
+  async function submitPrediction(matchId, chosen, stake) {
+    if (!client || !currentUser) {
       openAuth();
       return;
     }
 
-    if (!countSelections() || stake < 1) {
-      return toast("Mise invalide.");
+    if (!Number.isSafeInteger(stake) || stake <= 0) {
+      return toast("Montant de points invalide.");
     }
 
-    if (stake > balance) {
-      return toast("Solde insuffisant.");
+    try {
+      const { data: sessionData } =
+        await client.auth.getSession();
+
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        throw new Error("Session expirée. Reconnectez-vous.");
+      }
+
+      const response = await fetch(
+        `${config.supabaseUrl}/functions/v1/submit-prediction`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+            "apikey": config.supabaseAnonKey
+          },
+          body: JSON.stringify({
+            match_id: matchId,
+            selection: chosen,
+            stake_points: stake
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Pronostic refusé.");
+      }
+
+      databaseBalance = Number(result.remaining_points);
+      state.balance = databaseBalance;
+      save();
+
+      renderAccount();
+
+      toast(
+        `Pronostic confirmé ! Solde : ${format(databaseBalance)} PTS`
+      );
+
+    } catch (error) {
+      console.error(error);
+      toast(error.message || "Erreur lors du pronostic.");
     }
-
-    toast(
-      "Les pronostics en compte seront activés après la sécurisation du serveur."
-    );
-  });
-
-  $("resetDemo").addEventListener("click", () => {
-    if (currentUser) {
-      return toast("Réinitialisation réservée au mode démo.");
-    }
-
-    if (!confirm("Réinitialiser la démonstration ?")) return;
-
-    state = {
-      balance: START_POINTS,
-      history: []
-    };
-
-    selection = {};
-    save();
-    renderMatches();
-    renderAccount();
-
-    toast("Démonstration réinitialisée.");
-  });
-
-  $("profileButton").addEventListener("click", openAuth);
-
-  // INITIALIZATION
-  createAuthWindow();
-
-  renderMatches();
-  renderAccount();
-
-  $("year").textContent = new Date().getFullYear();
-
-  if (!client) {
-    toast("Supabase non configuré.");
-  } else {
-    client.auth.getSession().then(async ({ data, error }) => {
-      if (error) {
-        console.error(error.message);
-        return;
-      }
-
-      currentUser = data.session?.user || null;
-
-      updateProfileButton();
-
-      if (currentUser) {
-        await loadWallet();
-      }
-    });
-
-    client.auth.onAuthStateChange((event, session) => {
-      currentUser = session?.user || null;
-
-      if (event === "SIGNED_OUT") {
-        databaseBalance = null;
-      }
-
-      updateProfileButton();
-
-      if (event === "SIGNED_IN") {
-        setTimeout(loadWallet, 0);
-      }
-
-      if (event === "SIGNED_OUT") {
-        renderAccount();
-      }
-    });
   }
-
-})();
