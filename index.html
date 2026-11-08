@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101915">
+  <meta name="description" content="GOAL — plateforme de sport et de pronostics en points virtuels.">
+  <title>GOAL — Sports & Pronostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="GOAL accueil"><span class="brand-mark">G</span><span>GOAL<span class="brand-dot">.</span></span></a>
+    <nav class="desktop-nav" aria-label="Navigation principale">
+      <a class="nav-link active" href="#sports">Sports</a>
+      <a class="nav-link" href="#live">En direct</a>
+      <a class="nav-link" href="#casino">Jeux</a>
+      <a class="nav-link" href="#historique">Historique</a>
+    </nav>
+    <div class="top-actions">
+      <span class="demo-pill"><span></span> MODE DÉMO</span>
+      <button class="profile-button" id="profileButton" type="button"><span class="avatar">U</span><span class="profile-label">Mon compte</span></button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">LE SPORT, À VOTRE FAÇON</p>
+        <h1>Vivez chaque match.<br><span>Jouez pour le plaisir.</span></h1>
+        <p class="hero-subtitle">Suivez les rencontres et testez vos pronostics avec des points 100 % virtuels.</p>
+        <a class="button button-primary" href="#sports">Voir les matchs <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="orb orb-one"></div><div class="orb orb-two"></div>
+        <div class="hero-ball">⚽</div>
+        <div class="hero-score"><span>LE MATCH DU JOUR</span><strong>90<span>:</span>00</strong><small>La passion continue</small></div>
+      </div>
+    </section>
+
+    <section class="stats-grid" aria-label="Votre tableau de bord">
+      <article class="stat-card balance-card">
+        <div class="stat-icon">✦</div><div><p>Solde virtuel</p><strong id="balanceValue">10 000 <small>PTS</small></strong></div>
+      </article>
+      <article class="stat-card"><div class="stat-icon">◎</div><div><p>Pronostics placés</p><strong id="predictionCount">0</strong></div></article>
+      <article class="stat-card"><div class="stat-icon">↗</div><div><p>Gain potentiel sélectionné</p><strong id="potentialValue">0 <small>PTS</small></strong></div></article>
+    </section>
+
+    <div class="content-grid">
+      <section class="main-column" id="sports">
+        <div class="section-heading">
+          <div><p class="eyebrow">CENTRE SPORTIF</p><h2>Les matchs</h2></div>
+          <div class="filter-tabs" role="group" aria-label="Filtrer les matchs">
+            <button class="filter-tab active" data-filter="all" type="button">Tous</button>
+            <button class="filter-tab" data-filter="live" type="button">En direct</button>
+            <button class="filter-tab" data-filter="upcoming" type="button">À venir</button>
+          </div>
+        </div>
+        <div class="league-heading"><span class="league-icon">🏆</span><div><strong>Ligue des champions</strong><small>Matchs de démonstration</small></div><span class="league-country">EUROPE</span></div>
+        <div id="matchesList" class="matches-list"></div>
+        <div class="disclaimer">Les équipes, scores et cotes affichés sont fictifs et servent uniquement à la démonstration.</div>
+      </section>
+
+      <aside class="side-column">
+        <section class="panel betslip-panel">
+          <div class="panel-heading"><div><p class="eyebrow">VOTRE SÉLECTION</p><h2>Coupon</h2></div><span class="count-badge" id="selectionCount">0</span></div>
+          <div id="emptySlip" class="empty-state"><div class="empty-icon">＋</div><strong>Aucune sélection</strong><p>Choisissez 1, X ou 2 sur un match pour commencer.</p></div>
+          <div id="slipItems" class="slip-items"></div>
+          <div class="stake-area">
+            <label for="stakeInput">Mise en points virtuels</label>
+            <div class="stake-input-wrap"><input id="stakeInput" type="number" min="1" step="1" value="100" inputmode="numeric"><span>PTS</span></div>
+            <div class="quick-stakes"><button type="button" data-stake="50">50</button><button type="button" data-stake="100">100</button><button type="button" data-stake="250">250</button><button type="button" data-stake="500">500</button></div>
+          </div>
+          <div class="potential-row"><span>Gain potentiel</span><strong id="slipPotential">0 PTS</strong></div>
+          <button id="submitPrediction" class="button button-primary button-full" type="button" disabled>Valider le pronostic</button>
+          <p class="small-note">Aucune valeur monétaire. Points non échangeables et sans valeur réelle.</p>
+        </section>
+        <section class="panel mini-panel" id="casino">
+          <div class="mini-panel-icon">🎮</div><div><p class="eyebrow">ZONE DIVERTISSEMENT</p><h3>Jeux virtuels</h3><p>Une zone de jeux de démonstration pourra être ajoutée ici.</p><span class="coming-soon">BIENTÔT DISPONIBLE</span></div>
+        </section>
+      </aside>
+    </div>
+
+    <section class="history-section" id="historique">
+      <div class="section-heading"><div><p class="eyebrow">VOTRE ACTIVITÉ</p><h2>Historique des pronostics</h2></div><button id="resetDemo" class="text-button" type="button">Réinitialiser la démo</button></div>
+      <div class="history-table-wrap"><table><thead><tr><th>DATE</th><th>RENCONTRE</th><th>CHOIX</th><th>MISE</th><th>GAIN POTENTIEL</th><th>STATUT</th></tr></thead><tbody id="historyBody"><tr><td colspan="6" class="table-empty">Aucun pronostic pour le moment.</td></tr></tbody></table></div>
+    </section>
+  </main>
+
+  <footer class="footer"><a class="brand footer-brand" href="#"><span class="brand-mark">G</span><span>GOAL<span class="brand-dot">.</span></span></a><span>Plateforme de démonstration — points virtuels uniquement.</span><span>© <span id="year"></span> GOAL</span></footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
