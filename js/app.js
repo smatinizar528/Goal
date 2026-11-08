@@ -1,4 +1,3 @@
-
 (() => {
   "use strict";
 
@@ -27,7 +26,6 @@
 
   const START_POINTS = Number(config?.demoStartingPoints) || 10000;
 
-  // MATCHES CHARGÉS DEPUIS SUPABASE
   let matches = [];
 
   function loadState() {
@@ -76,8 +74,7 @@
       el.classList.remove("show");
     }, 3000);
   }
-
-  // AUTHENTICATION WINDOW
+    // AUTHENTICATION WINDOW
   function createAuthWindow() {
     const style = document.createElement("style");
 
@@ -109,9 +106,7 @@
       .goal-auth-box input:focus {
         border-color:#b8f36b;
       }
-      .goal-auth-box button {
-        cursor:pointer;
-      }
+      .goal-auth-box button {cursor:pointer}
       .goal-auth-close {
         float:right; background:none;
         border:0; color:white; font-size:22px;
@@ -239,8 +234,7 @@
       currentUser?.user_metadata?.username ||
       "Compte GOAL";
   }
-
-  // INTERNAL EMAIL ALIAS FOR SUPABASE
+    // INTERNAL EMAIL ALIAS FOR SUPABASE
   function usernameToInternalEmail(username) {
     const normalized = username.trim().toLowerCase();
 
@@ -276,25 +270,25 @@
     const button = $("goalLogin");
     button.disabled = true;
 
-    const { data, error } = await client.auth.signInWithPassword({
-      email,
-      password
-    });
+    try {
+      const { data, error } = await client.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    button.disabled = false;
+      if (error) throw error;
 
-    if (error) {
-      return authMessage(
-        "Connexion impossible. Vérifiez vos identifiants."
-      );
+      currentUser = data.user;
+      await loadWallet();
+      updateAuthWindow();
+      updateProfileButton();
+
+      toast("Connexion réussie !");
+    } catch (error) {
+      authMessage("Connexion impossible. Vérifiez vos identifiants.");
+    } finally {
+      button.disabled = false;
     }
-
-    currentUser = data.user;
-    await loadWallet();
-    updateAuthWindow();
-    updateProfileButton();
-
-    toast("Connexion réussie !");
   }
 
   // REGISTER
@@ -322,193 +316,34 @@
     const button = $("goalRegister");
     button.disabled = true;
 
-    const { data, error } = await client.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: username,
-          username: username
+    try {
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: username,
+            username: username
+          }
         }
-      }
-    });
-
-    button.disabled = false;
-
-    if (error) {
-      return authMessage(error.message);
-    }
-
-    if (data.session) {
-      currentUser = data.user;
-      await loadWallet();
-      updateAuthWindow();
-      updateProfileButton();
-
-      toast("Compte GOAL créé !");
-    } else {
-      authMessage(
-        "Compte créé. Vérifiez que Confirm email est désactivé dans Supabase."
-      );
-    }
-  }
-
-  // LOGOUT
-  async function logout() {
-    const { error } = await client.auth.signOut();
-
-    if (error) {
-      return authMessage(error.message);
-    }
-
-    currentUser = null;
-    databaseBalance = null;
-
-    updateAuthWindow();
-    updateProfileButton();
-    renderAccount();
-    closeAuth();
-
-    toast("Déconnexion réussie.");
-  }
-
-  // LOAD WALLET FROM SUPABASE
-  async function loadWallet() {
-    if (!client || !currentUser) return;
-
-    const { data, error } = await client
-      .from("wallets")
-      .select("points")
-      .eq("user_id", currentUser.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Wallet error:", error);
-      return toast("Impossible de charger le solde.");
-    }
-
-    if (data) {
-      databaseBalance = Number(data.points);
-      state.balance = databaseBalance;
-      save();
-      renderAccount();
-    }
-  }
-
-  // LOAD MATCHES AND ODDS
-  async function loadMatches() {
-    if (!client) {
-      toast("Configuration Supabase manquante.");
-      return;
-    }
-
-    const { data, error } = await client
-      .from("matches")
-      .select(`
-        id,
-        home_team,
-        away_team,
-        kickoff_at,
-        status,
-        home_score,
-        away_score,
-        leagues(name),
-        odds(selection, odd)
-      `)
-      .eq("is_demo", true)
-      .order("kickoff_at", { ascending: true });
-
-    if (error) {
-      console.error(error);
-      toast("Erreur chargement des matchs.");
-      return;
-    }
-
-    matches = (data || []).map(match => {
-      const odds = {};
-
-      (match.odds || []).forEach(item => {
-        odds[item.selection] = Number(item.odd);
       });
 
-      return {
-        id: match.id,
-        home: match.home_team,
-        away: match.away_team,
-        status: match.status,
-        time: match.kickoff_at
-          ? new Date(match.kickoff_at).toLocaleString("fr-FR")
-          : "",
-        score:
-          match.home_score !== null &&
-          match.away_score !== null
-            ? `${match.home_score} - ${match.away_score}`
-            : "",
-        league: match.leagues?.name || "GOAL Demo League",
-        odds
-      };
-    });
+      if (error) throw error;
 
-    renderMatches();
-  }
-
-  // SUBMIT VIRTUAL PREDICTION
-  async function submitPrediction(matchId, chosen, stake) {
-    if (!client || !currentUser) {
-      openAuth();
-      return;
-    }
-
-    if (!Number.isSafeInteger(stake) || stake <= 0) {
-      return toast("Montant de points invalide.");
-    }
-
-    try {
-      const { data: sessionData } =
-        await client.auth.getSession();
-
-      const token = sessionData.session?.access_token;
-
-      if (!token) {
-        throw new Error("Session expirée. Reconnectez-vous.");
+      if (data.session) {
+        currentUser = data.user;
+        await loadWallet();
+        updateAuthWindow();
+        updateProfileButton();
+        toast("Compte GOAL créé !");
+      } else {
+        authMessage(
+          "Compte créé. Désactivez Confirm email dans Supabase pour une connexion immédiate."
+        );
       }
-
-      const response = await fetch(
-        `${config.supabaseUrl}/functions/v1/submit-prediction`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-            "apikey": config.supabaseAnonKey
-          },
-          body: JSON.stringify({
-            match_id: matchId,
-            selection: chosen,
-            stake_points: stake
-          })
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Pronostic refusé.");
-      }
-
-      databaseBalance = Number(result.remaining_points);
-      state.balance = databaseBalance;
-      save();
-
-      renderAccount();
-
-      toast(
-        `Pronostic confirmé ! Solde : ${format(databaseBalance)} PTS`
-      );
-
     } catch (error) {
-      console.error(error);
-      toast(error.message || "Erreur lors du pronostic.");
+      authMessage(error.message || "Création du compte impossible.");
+    } finally {
+      button.disabled = false;
     }
   }
-})();
