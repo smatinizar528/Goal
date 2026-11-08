@@ -1,4 +1,3 @@
-
 (() => {
   "use strict";
 
@@ -305,6 +304,7 @@
 
       currentUser = data.user;
       await loadWallet();
+      await loadHistory();
       updateAuthWindow();
       updateProfileButton();
 
@@ -360,6 +360,7 @@
       if (data.session) {
         currentUser = data.user;
         await loadWallet();
+        await loadHistory();
         updateAuthWindow();
         updateProfileButton();
         toast("Compte GOAL créé !");
@@ -383,6 +384,7 @@
 
     currentUser = null;
     databaseBalance = null;
+    state.history = [];
 
     updateAuthWindow();
     updateProfileButton();
@@ -445,7 +447,6 @@
     })[char]);
   }
 
- 
   function renderHistory() {
     const body = $("historyBody");
     if (!body) return;
@@ -471,7 +472,7 @@
   async function loadHistory() {
     if (!client || !currentUser) {
       state.history = [];
-      renderHistory();
+      renderAccount();
       return;
     }
 
@@ -510,25 +511,39 @@
         : item.status
     }));
 
-    renderHistory();
+    renderAccount();
   }
+
+  function renderMatches() {
+    const container = $("matchesList");
+    if (!container) return;
+
+    const visible = matches.filter(match => {
+      if (filter === "live") return match.status === "live";
+      if (filter === "upcoming") return match.status === "upcoming";
+      return true;
+    });
+
+    if (!visible.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <strong>Aucun match disponible</strong>
+          <p>Ajoutez des matchs de démonstration dans Supabase (matches et odds).</p>
+        </div>
+      `;
+      return;
+    }
 
     container.innerHTML = visible.map(match => {
       const chosen = selection[match.id];
-      const statusLabel =
-        match.status === "live" ? "EN DIRECT" : "À VENIR";
-
-      const timeLabel =
-        match.status === "live" && match.score
-          ? `Score : ${escapeHtml(match.score)}`
-          : escapeHtml(match.time || "Horaire à confirmer");
+      const statusLabel = match.status === "live" ? "EN DIRECT" : "À VENIR";
+      const timeLabel = match.status === "live" && match.score
+        ? `Score : ${escapeHtml(match.score)}`
+        : escapeHtml(match.time || "Horaire à confirmer");
 
       const odds = ["1", "X", "2"].map(option => {
         const odd = match.odds[option];
-        const disabled =
-          match.status !== "upcoming" ||
-          !Number.isFinite(odd);
-
+        const disabled = match.status !== "upcoming" || !Number.isFinite(odd);
         return `
           <button type="button"
             class="odd-button ${chosen === option ? "selected" : ""}"
@@ -562,12 +577,8 @@
         button.addEventListener("click", () => {
           const id = button.dataset.match;
           const choice = button.dataset.choice;
-
-          selection[id] =
-            selection[id] === choice ? null : choice;
-
+          selection[id] = selection[id] === choice ? null : choice;
           if (!selection[id]) delete selection[id];
-
           renderMatches();
           renderSlip();
         });
@@ -779,16 +790,10 @@
       databaseBalance = Number(result.remaining_points);
       state.balance = databaseBalance;
 
-      state.history.push({
-        date: new Date().toLocaleString("fr-FR"),
-        match: `${item.match.home} — ${item.match.away}`,
-        choice: item.choice,
-        stake,
-        potential: Number(result.potential_points)
-      });
-
-      save();
       delete selection[item.match.id];
+
+      await loadWallet();
+      await loadHistory();
 
       renderAccount();
       renderMatches();
@@ -861,41 +866,41 @@
     renderAccount();
     renderSlip();
 
-    if (client) {
-      const { data, error } = await client.auth.getSession();
-
-      if (error) {
-        console.error("Session error:", error);
-      }
-
-      currentUser = data?.session?.user || null;
-
-      client.auth.onAuthStateChange((_event, session) => {
-        currentUser = session?.user || null;
-        updateProfileButton();
-
-       if (currentUser) {
-  await loadWallet();
-  await loadHistory();
-}
-
-await loadMatches();
-}
-        } else {
-          databaseBalance = null;
-          renderAccount();
-        }
-      });
-
-      updateProfileButton();
-
-      if (currentUser) await loadWallet();
-
-      await loadMatches();
-    } else {
+    if (!client) {
       updateProfileButton();
       renderMatches();
+      return;
     }
+
+    const { data, error } = await client.auth.getSession();
+    if (error) console.error("Session error:", error);
+
+    currentUser = data?.session?.user || null;
+
+    client.auth.onAuthStateChange((_event, session) => {
+      currentUser = session?.user || null;
+      updateProfileButton();
+
+      if (currentUser) {
+        setTimeout(() => {
+          loadWallet();
+          loadHistory();
+        }, 0);
+      } else {
+        databaseBalance = null;
+        state.history = [];
+        renderAccount();
+      }
+    });
+
+    updateProfileButton();
+
+    if (currentUser) {
+      await loadWallet();
+      await loadHistory();
+    }
+
+    await loadMatches();
   }
 
   document.addEventListener("DOMContentLoaded", init);
